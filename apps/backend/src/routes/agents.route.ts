@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { publishBlob, fetchBlob, publishAgentBlob } from '../services/walrus.service';
-import { getSuiBalance, getSuiPrice, getTatumNodeStatus, getExchangeRate, checkMaliciousAddress, getAllBalances, getTransactionHistory } from '../services/tatum.service';
+import { getSuiBalance, getSuiPrice, getTatumNodeStatus, getExchangeRate, checkMaliciousAddress, getAllBalances, getTransactionHistory, getLatencyHistory, getAverageLatency } from '../services/tatum.service';
 import { agents } from '../services/scheduler.service';
 import { v4 as uuidv4 } from 'uuid';
 import { generateAgentWallet } from '../services/wallet.service';
@@ -137,6 +137,27 @@ router.get('/meta/tatum-status', async (req: Request, res: Response) => {
   try {
     const status = await getTatumNodeStatus();
     res.json(status);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/meta/tatum-metrics', async (req: Request, res: Response) => {
+  try {
+    const history = getLatencyHistory();
+    const avgLatency = getAverageLatency();
+    const status = await getTatumNodeStatus();
+    res.json({
+      currentLatencyMs: status.latencyMs,
+      averageLatencyMs: avgLatency,
+      totalCalls: history.length,
+      recentCalls: history.slice(0, 10),
+      network: status.network,
+      checkpoint: status.checkpoint,
+      online: status.online,
+      rateLimit: '2 RPS (free plan safe)',
+      poweredBy: 'Tatum Enterprise RPC',
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

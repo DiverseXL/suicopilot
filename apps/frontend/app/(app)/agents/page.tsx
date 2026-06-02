@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { Bot, Plus, ExternalLink, Activity, Clock, Pause, Play, Zap } from 'lucide-react';
+import { Bot, Plus, ExternalLink, Activity, Clock, Pause, Play, Zap, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AgentsPage() {
@@ -19,18 +19,7 @@ export default function AgentsPage() {
     }
   }
 
-  async function recoverFromWalrus() {
-    const blobIds = prompt('Paste Walrus strategy blob IDs (comma separated):');
-    if (!blobIds) return;
-    const ids = blobIds.split(',').map(s => s.trim()).filter(Boolean);
-    try {
-      const res = await api.post('/api/agents/recover', { blobIds: ids });
-      alert(`Recovered! Agents in memory: ${res.data.agentsInMemory}`);
-      loadAgents();
-    } catch (e: any) {
-      alert('Recovery failed: ' + e.message);
-    }
-  }
+
 
   useEffect(() => {
     loadAgents();
@@ -59,16 +48,29 @@ export default function AgentsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={recoverFromWalrus} style={{
+          <Link href="/walrus/recover" style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '10px 16px', borderRadius: 10,
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.08)',
             color: 'rgba(160,160,176,1)',
-            fontSize: 13, cursor: 'pointer'
-          }}>
-            🔄 Recover from Walrus
-          </button>
+            textDecoration: 'none',
+            fontSize: 13, cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = 'rgba(153,69,255,0.08)';
+              e.currentTarget.style.borderColor = 'rgba(153,69,255,0.25)';
+              e.currentTarget.style.color = '#B97BFF';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.color = 'rgba(160,160,176,1)';
+            }}
+          >
+            <RefreshCw size={14} /> Recover from Walrus
+          </Link>
           <Link href="/deploy" style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '10px 20px', borderRadius: 10,

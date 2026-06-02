@@ -1599,3 +1599,193 @@ i.landing-token-red {
     font-size: 32px;
   }
 }
+
+/* Built on Sui Section */
+.landing-built-on {
+  position: relative;
+  width: min(calc(100% - 32px), 1240px);
+  margin: 120px auto 80px;
+  padding: 80px 40px;
+  border: 1px solid var(--border-default);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    var(--bg-elevated);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  text-align: center;
+  overflow: hidden;
+}
+
+.landing-built-on::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(155, 69, 255, 0.18), transparent 60%),
+    radial-gradient(circle at 10% 90%, rgba(20, 241, 149, 0.04), transparent 40%);
+}
+
+.landing-built-on-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  color: var(--landing-muted);
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.landing-built-on-eyebrow::before,
+.landing-built-on-eyebrow::after {
+  content: "";
+  display: inline-block;
+  width: 24px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2));
+}
+
+.landing-built-on-eyebrow::after {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.landing-built-on-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.landing-built-on-logo {
+  filter: drop-shadow(0 0 16px rgba(155, 69, 255, 0.45));
+  animation: pulse 4s ease-in-out infinite;
+}
+
+.landing-built-on-title {
+  font-size: 56px;
+  font-weight: 850;
+  line-height: 1;
+  background: linear-gradient(135deg, #ffffff 30%, var(--landing-purple-soft) 70%, var(--landing-green) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.02em;
+}
+
+.landing-built-on-desc {
+  max-width: 620px;
+  margin: 0 auto 48px;
+  color: var(--landing-muted);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.landing-built-on-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.landing-built-on-card {
+  position: relative;
+  padding: 32px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.landing-built-on-card:hover {
+  border-color: rgba(155, 69, 255, 0.4);
+  background: rgba(155, 69, 255, 0.03);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(155, 69, 255, 0.08);
+}
+
+.landing-built-on-card-val {
+  display: block;
+  font-size: 42px;
+  font-weight: 850;
+  line-height: 1;
+  color: #ffffff;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #ffffff 40%, var(--landing-green) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.landing-built-on-card-lbl {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--landing-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Float items for Built on Sui section */
+.landing-built-on-float {
+  position: absolute;
+  color: rgba(155, 69, 255, 0.28);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+  animation: pulse 6s ease-in-out infinite;
+}
+
+.landing-built-on-float-sui {
+  top: 15%;
+  left: 8%;
+  animation-delay: 0s;
+}
+
+.landing-built-on-float-cetus {
+  top: 65%;
+  left: 6%;
+  animation-delay: 1.5s;
+}
+
+.landing-built-on-float-deep {
+  top: 25%;
+  right: 8%;
+  animation-delay: 3s;
+}
+
+.landing-built-on-float-walrus {
+  top: 75%;
+  right: 7%;
+  animation-delay: 4.5s;
+}
+
+@media (max-width: 1100px) {
+  .landing-built-on {
+    width: min(calc(100% - 24px), 760px);
+    padding: 60px 24px;
+    margin: 80px auto;
+  }
+  .landing-built-on-title {
+    font-size: 44px;
+  }
+  .landing-built-on-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .landing-built-on-card {
+    padding: 24px;
+  }
+  .landing-built-on-float {
+    display: none;
+  }
+}
+

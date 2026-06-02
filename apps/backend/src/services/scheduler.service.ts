@@ -16,6 +16,7 @@ function getOpenAI(): OpenAI {
 }
 
 let healthCheckCounter = 0;
+const agentRunCounts: Record<string, number> = {};
 
 // Load persisted agents from SQLite on startup
 export const agents: Record<string, any> = loadAllAgents();
@@ -174,6 +175,16 @@ async function runAgent(agent: any): Promise<void> {
   saveAgent(agent);
   saveLog(agent.id, log);
 
+  // Performance report every 10 runs
+  agentRunCounts[agent.id] = (agentRunCounts[agent.id] ?? 0) + 1;
+  if (agentRunCounts[agent.id] % 10 === 0) {
+    try {
+      await publishPerformanceReport(agent);
+    } catch (e: any) {
+      console.error(`[Performance] Report failed for ${agent.id}:`, e.message);
+    }
+  }
+
   broadcast('agent_execution', {
     agentId: agent.id,
     intent: agent.intent,
@@ -311,4 +322,60 @@ Respond with JSON only:
       console.error(`[Health] Agent ${agent.id} check failed:`, err.message);
     }
   }
+}
+
+async function publishPerformanceReport(agent: any): Promise<void> {
+  const logs = agent.logs ?? [];
+  const totalRuns = logs.length;
+  const successfulRuns = logs.filter((l: any) =>
+    l.status === 'checked' || l.status === 'executed'
+  ).length;
+  const dcaRuns = logs.filter((l: any) => l.action === 'dca_swap').length;
+
+  const report = {
+    agentId: agent.id,
+    intent: agent.intent,
+    reportType: 'performance_summary',
+    timestamp: new Date().toISOString(),
+    metrics: {
+      totalRuns,
+      successfulRuns,
+      successRate: totalRuns > 0
+        ? ((successfulRuns / totalRuns) * 100).toFixed(1) + '%'
+        : '0%',
+      dcaExecutions: dcaRuns,
+      dailyLimit: agent.dailyLimit,
+      spentToday: agent.spentToday,
+      remainingBudget: agent.dailyLimit - agent.spentToday,
+      uptime: agent.createdAt
+        ? Math.floor(
+            (Date.now() - new Date(agent.createdAt).getTime()) / (1000 * 60 * 60)
+          ) + ' hours'
+        : 'unknown',
+    },
+    poweredBy: 'Walrus Immutable Storage + Tatum RPC',
+  };
+
+  const blobId = await publishAgentBlob('execution', agent.id, report);
+
+  const log = {
+    blobId,
+    timestamp: new Date().toISOString(),
+    action: 'performance_report',
+    status: 'published',
+  };
+
+  agent.logs = [log, ...(agent.logs ?? [])];
+  agent.logBlobId = blobId;
+  saveAgent(agent);
+  saveLog(agent.id, log);
+
+  broadcast('performance_report', {
+    agentId: agent.id,
+    blobId,
+    metrics: report.metrics,
+    timestamp: report.timestamp,
+  });
+
+  console.log(`[Performance] Agent ${agent.id}: report published → ${blobId}`);
 }

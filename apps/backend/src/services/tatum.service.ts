@@ -3,6 +3,19 @@ import axios from 'axios';
 const RPC_URL = process.env.SUI_RPC_URL!;
 const API_KEY = process.env.TATUM_API_KEY!;
 
+// Latency history — last 50 calls
+const latencyHistory: Array<{ timestamp: string; latencyMs: number; method: string }> = [];
+
+export function getLatencyHistory() {
+  return latencyHistory;
+}
+
+export function getAverageLatency(): number {
+  if (latencyHistory.length === 0) return 0;
+  const sum = latencyHistory.reduce((acc, l) => acc + l.latencyMs, 0);
+  return Math.round(sum / latencyHistory.length);
+}
+
 // Rate limiter — max 2 requests per second (safe under 3 RPS free limit)
 let lastCallTime = 0;
 const MIN_INTERVAL_MS = 500; // 2 RPS max
@@ -16,6 +29,7 @@ async function rateLimitedCall() {
 
 async function rpcCall(method: string, params: any[]) {
   await rateLimitedCall();
+  const start = Date.now();
   const response = await axios.post(
     RPC_URL,
     { jsonrpc: '2.0', id: 1, method, params },
@@ -24,9 +38,12 @@ async function rpcCall(method: string, params: any[]) {
         'Content-Type': 'application/json',
         'x-api-key': API_KEY,
       },
-      timeout: 10000, // 10s timeout per call
+      timeout: 10000,
     }
   );
+  const latencyMs = Date.now() - start;
+  latencyHistory.unshift({ timestamp: new Date().toISOString(), latencyMs, method });
+  if (latencyHistory.length > 50) latencyHistory.pop();
   return response.data.result;
 }
 
