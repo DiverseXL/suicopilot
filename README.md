@@ -26,6 +26,7 @@ A monorepo for the `suicopilot` project, combining a Sui-powered backend service
 ## Setup
 
 1. Install dependencies from the repository root:
+
    ```bash
    pnpm install
    ```
@@ -35,6 +36,7 @@ A monorepo for the `suicopilot` project, combining a Sui-powered backend service
    - Add required values such as `OPENAI_API_KEY`, `SUI_RPC_URL`, `PORT`, `SUI_NETWORK`, and Tatum/Walrus endpoints
 
 3. Run the backend in development mode:
+
    ```bash
    pnpm --dir apps/backend dev
    ```
@@ -47,16 +49,17 @@ A monorepo for the `suicopilot` project, combining a Sui-powered backend service
 ## Backend details
 
 The backend service uses:
+
 - Express
 - TypeScript
 - OpenAI API
 - Sui integrations via `@mysten/sui` and `@mysten/walrus`
-- `better-sqlite3` for local data storage
 - `node-cron` for scheduled tasks
 
 ## Frontend details
 
 The frontend is a React + Next.js app using:
+
 - `next` 16
 - React 19
 - Tailwind CSS via `@tailwindcss/postcss`
@@ -66,6 +69,7 @@ The frontend is a React + Next.js app using:
 ## Useful commands
 
 From the repository root:
+
 - `pnpm --dir apps/backend dev` — start backend in dev mode
 - `pnpm --dir apps/backend build` — build backend
 - `pnpm --dir apps/backend start` — run production backend bundle
