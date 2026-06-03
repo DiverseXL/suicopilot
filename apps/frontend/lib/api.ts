@@ -1,7 +1,7 @@
 import axios from 'axios';
+import { API_URL } from '@/lib/config';
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+export const API_BASE = API_URL;
 
 export const SSE_URL = `${API_BASE}/events`;
 

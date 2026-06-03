@@ -202,7 +202,7 @@ export function Sidebar() {
                 color: '#14F195',
               }}
             >
-              Sui Testnet
+              Sui Mainnet
             </span>
           </div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(110,110,130,1)' }}>

@@ -168,13 +168,48 @@ export default function Home() {
           ))}
         </div>
 
-        <Link className="landing-agent-chip" href="/agents">
-          <span className="landing-mini-avatar">S</span>
-          <span>
-            <strong>@suicopilot_bot</strong>
-            <small>AI agent - Sui</small>
-          </span>
-        </Link>
+        <div style={{ justifySelf: 'end', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <a
+            href="https://x.com/suicopilotlr"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Follow SuiCopilot on X"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              color: 'rgba(238, 234, 247, 0.76)',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#fff';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.color = 'rgba(238, 234, 247, 0.76)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+
+          <Link className="landing-agent-chip" href="/agents">
+            <span className="landing-mini-avatar">S</span>
+            <span>
+              <strong>@suicopilot_bot</strong>
+              <small>AI agent - Sui</small>
+            </span>
+          </Link>
+        </div>
       </nav>
 
       <section className="landing-hero">

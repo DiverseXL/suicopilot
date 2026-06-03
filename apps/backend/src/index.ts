@@ -15,7 +15,15 @@ export { broadcast, sseClients };
 validateEnv();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://suicopilot.vercel.app',
+    'https://suicopilot-frontend.vercel.app',
+    'https://diversexl-suicopilot.vercel.app',
+  ],
+  credentials: true,
+}));
 app.use(helmet());
 app.use(express.json());
 app.use('/api/agents', agentsRoute);
