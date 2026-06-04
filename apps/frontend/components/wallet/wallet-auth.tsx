@@ -212,7 +212,7 @@ function WalletAccountMenu() {
   if (!account) return null;
 
   const short = formatAddress(account.address);
-  const explorer = `https://suiscan.xyz/testnet/account/${account.address}`;
+  const explorer = `https://suiscan.xyz/mainnet/account/${account.address}`;
 
   const copyAddress = () => {
     navigator.clipboard.writeText(account.address);

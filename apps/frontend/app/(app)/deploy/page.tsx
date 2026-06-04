@@ -21,6 +21,27 @@ export default function DeployPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string>('');
   const [step, setStep] = useState<'input' | 'deploying' | 'done'>('input');
+  const [forkBlobId, setForkBlobId] = useState<string>('');
+  const [forkLoading, setForkLoading] = useState<boolean>(false);
+
+  async function loadFromBlob() {
+    if (!forkBlobId) return;
+    setForkLoading(true);
+    setError('');
+    try {
+      const res = await api.get(`/api/agents/blob/${forkBlobId.trim()}`);
+      if (res.data) {
+        setPrompt(res.data.intent ?? '');
+        setDailyLimit(res.data.dailyLimit ? String(res.data.dailyLimit) : '');
+      } else {
+        setError('No data returned for this blob ID');
+      }
+    } catch (e: any) {
+      setError(e.response?.data?.error ?? e.message);
+    } finally {
+      setForkLoading(false);
+    }
+  }
 
   async function deploy() {
     if (!account || !prompt || !dailyLimit) return;
@@ -143,6 +164,42 @@ export default function DeployPage() {
           Describe your strategy in plain English. Your rules are stored immutably on Walrus.
         </p>
       </div>
+
+      {/* Compose from Strategy Blob ID (Fork) */}
+      <GlassCard style={{ padding: 20, marginBottom: 16, border: '1px solid rgba(153,69,255,0.15)' }}>
+        <div style={{ fontSize: 11, fontFamily: 'monospace', letterSpacing: '0.15em',
+          textTransform: 'uppercase', color: 'rgba(185,123,255,1)', marginBottom: 12 }}>
+          Compose from Strategy
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <input
+            type="text"
+            value={forkBlobId}
+            onChange={e => setForkBlobId(e.target.value)}
+            placeholder="Paste Walrus Strategy Blob ID to fork"
+            style={{
+              flex: 1, background: 'rgba(13,13,20,1)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 10, padding: '10px 14px',
+              color: '#fff', fontSize: 14, outline: 'none'
+            }}
+          />
+          <button
+            onClick={loadFromBlob}
+            disabled={forkLoading || !forkBlobId}
+            style={{
+              padding: '10px 20px',
+              background: forkLoading || !forkBlobId ? 'rgba(19,19,30,1)' : 'rgba(153,69,255,0.15)',
+              border: '1px solid rgba(153,69,255,0.25)',
+              color: '#B97BFF', borderRadius: 10,
+              cursor: forkLoading || !forkBlobId ? 'not-allowed' : 'pointer',
+              fontSize: 14, fontWeight: 600, transition: 'all 0.15s'
+            }}
+          >
+            {forkLoading ? 'Loading...' : 'Load'}
+          </button>
+        </div>
+      </GlassCard>
 
       {/* Prompt input */}
       <GlassCard style={{ padding: 24, marginBottom: 16 }}>

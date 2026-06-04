@@ -122,6 +122,15 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/blob/:blobId', async (req: Request, res: Response) => {
+  try {
+    const data = await fetchBlob(req.params.blobId as string);
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/meta/tatum-proof', async (req: Request, res: Response) => {
   try {
     const start = Date.now();

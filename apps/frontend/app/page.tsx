@@ -526,6 +526,87 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <footer className="landing-footer">
+        <div className="landing-footer-inner">
+          {/* Brand column */}
+          <div className="landing-footer-brand">
+            <div className="landing-footer-logo-row">
+              <svg width="28" height="36" viewBox="0 0 300 383.5" fill="none" xmlns="http://www.w3.org/2000/svg" className="landing-footer-logo-svg" aria-hidden="true">
+                <path fillRule="evenodd" clipRule="evenodd" d="M240.1,159.9c15.6,19.6,25,44.5,25,71.5s-9.6,52.6-25.7,72.4l-1.4,1.7l-0.4-2.2c-0.3-1.8-0.7-3.7-1.1-5.6 c-8-35.3-34.2-65.6-77.4-90.2c-29.1-16.5-45.8-36.4-50.2-59c-2.8-14.6-0.7-29.3,3.3-41.9c4.1-12.6,10.1-23.1,15.2-29.4l16.8-20.5 c2.9-3.6,8.5-3.6,11.4,0L240.1,159.9L240.1,159.9z M266.6,139.4L154.2,2c-2.1-2.6-6.2-2.6-8.3,0L33.4,139.4l-0.4,0.5 C12.4,165.6,0,198.2,0,233.7c0,82.7,67.2,149.8,150,149.8c82.8,0,150-67.1,150-149.8c0-35.5-12.4-68.1-33.1-93.8L266.6,139.4 L266.6,139.4z M60.3,159.5l10-12.3l0.3,2.3c0.2,1.8,0.5,3.6,0.9,5.4c6.5,34.1,29.8,62.6,68.6,84.6c33.8,19.2,53.4,41.3,59.1,65.6 c2.4,10.1,2.8,20.1,1.8,28.8l-0.1,0.5l-0.5,0.2c-15.2,7.4-32.4,11.6-50.5,11.6c-63.5,0-115-51.4-115-114.8 C34.9,204.2,44.4,179.1,60.3,159.5L60.3,159.5z" fill="url(#sui-footer-grad)" />
+                <defs>
+                  <linearGradient id="sui-footer-grad" x1="0" y1="0" x2="300" y2="383.5" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#9b45ff" />
+                    <stop offset="0.5" stopColor="#b44cff" />
+                    <stop offset="1" stopColor="#14f195" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <strong className="landing-footer-wordmark">suicopilot</strong>
+            </div>
+            <p className="landing-footer-tagline">
+              Autonomous Sui agents from a single prompt. Strategy on Walrus, execution on-chain.
+            </p>
+            <div className="landing-footer-badges">
+              <span className="landing-footer-badge">
+                <span className="landing-footer-badge-dot" />
+                MAINNET
+              </span>
+              <span className="landing-footer-badge landing-footer-badge-green">
+                <span className="landing-footer-badge-dot landing-footer-badge-dot-green" />
+                LIVE
+              </span>
+            </div>
+          </div>
+
+          {/* Connect Wallet section */}
+          <div className="landing-footer-cta">
+            <p className="landing-footer-cta-label">Ready to deploy your first agent?</p>
+            {mounted ? (
+              account ? (
+                <button
+                  className="landing-footer-wallet-btn"
+                  type="button"
+                  onClick={() => router.push('/agents')}
+                >
+                  <span className="landing-footer-wallet-dot" />
+                  Go to Dashboard
+                  <ArrowRight aria-hidden size={16} />
+                </button>
+              ) : (
+                <WalletAuth variant="landing" connectLabel={
+                  <span className="landing-button-content">
+                    <Wallet aria-hidden size={17} />
+                    Connect Sui Wallet
+                    <ArrowRight aria-hidden size={17} />
+                  </span>
+                } />
+              )
+            ) : (
+              <button className="landing-footer-wallet-btn" type="button" disabled style={{ opacity: 0.5 }}>
+                <Wallet aria-hidden size={17} />
+                Connect Sui Wallet
+              </button>
+            )}
+            <p className="landing-footer-cta-note">
+              Non-custodial · Keys stay in your wallet · Free to start
+            </p>
+          </div>
+        </div>
+
+        <div className="landing-footer-bottom">
+          <div className="landing-footer-bottom-inner">
+            <span className="landing-footer-copy">
+              © 2025 SuiCopilot. Built on Sui Mainnet.
+            </span>
+            <div className="landing-footer-links">
+              <a href="https://x.com/suicopilotlr" target="_blank" rel="noopener noreferrer">Twitter / X</a>
+              <a href="https://github.com/suicopilot" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <a href="/THESIS.md" target="_blank" rel="noopener noreferrer">Research</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

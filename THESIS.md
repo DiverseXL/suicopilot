@@ -2,169 +2,113 @@
 
 ## Executive Summary
 
-SuiCopilot is a framework for deploying autonomous trading agents on the Sui blockchain with natural language intent parsing, persistent storage via Walrus, and real-time balance monitoring. It democratizes algorithmic trading by enabling users to describe strategies in plain English, then automatically executing scheduled checks and maintaining an immutable audit trail of all actions.
+SuiCopilot is a production-ready framework for deploying autonomous trading agents on the Sui blockchain with natural language intent parsing, decentralized state logs via Walrus, and real-time wallet monitoring. It democratizes algorithmic trading by enabling users to describe complex trading rules in plain English. The platform automatically coordinates scheduled execution runs, monitors agent health, queries network endpoints, and writes immutable audit logs of all trading decisions.
+
+---
 
 ## Problem Statement
 
 **The Gap in Autonomous Trading Infrastructure:**
+1. **Centralized Risk:** Most automated trading platforms control execution keys in opaque databases, creating custodial vulnerability and lack of transparency.
+2. **Strategy Opacity:** User strategies are black boxes with no verifiable historical records of what rules triggered a specific trade.
+3. **Execution Unpredictability:** Serial processing designs mean that one hanging RPC call can stall an entire system and block other agents' trades.
+4. **Fragile State Persistence:** Relying on basic JSON flat files to track state causes data corruption and loss during server restarts.
 
-1. **Centralized Risk**: Most automated trading platforms control keys and execution, creating custodial risk and single points of failure
-2. **Strategy Opacity**: User-written strategies are often proprietary black boxes with no verifiable execution history
-3. **Integration Friction**: Building autonomous agents requires deep blockchain knowledge, RPC integration expertise, and crypto primitives understanding
-4. **Execution Unpredictability**: One agent's failure can cascade and block others in a serial execution model
+---
 
 ## Core Innovation: The SuiCopilot Architecture
 
 ### Three Core Components
 
-**1. Prompt-to-Strategy (NLP Layer)**
-- Users describe trading intent in natural language
-- OpenAI's GPT-4o-mini parses intent into structured JSON rules
-- Daily spend limits prevent runaway execution
-- Rules published immutably to Walrus for verification
+#### 1. Prompt-to-Strategy (NLP Layer)
+- Users specify trading actions in natural language.
+- OpenAI translates intent into structured JSON rules (DCA frequency, price limits, stop-loss limits).
+- Budgets and daily spend limits are enforced on-chain and locally.
+- Strategies and rules are uploaded immutably to Walrus for public verifiability.
 
-**2. Parallel Scheduler with Isolation (Execution Layer)**
-- Cron jobs trigger every 60 seconds
-- `Promise.allSettled()` ensures parallel, non-blocking execution
-- 30-second per-agent timeout prevents RPC hangs from cascading failures
-- Each agent runs independently; one failure doesn't block others
+#### 2. Parallel Scheduler with Isolation (Execution Layer)
+- Background worker schedules trigger checks every minute.
+- Maps executing agents in parallel using `Promise.allSettled()`.
+- Uses a strict agent-level timeout (`Promise.race()`) to isolate execution flows and prevent RPC hangs.
+- Each agent operates in its own execution thread, securing isolation.
 
-**3. Immutable Audit Trail (Verification Layer)**
-- All strategy deployments published to Walrus as JSON blobs
-- Every scheduled run logged with balance snapshot, action, and status
-- Pause/resume events recorded with timestamps
-- Users can verify execution history via public blob IDs
+#### 3. Decentralized Audit Trail (Verification Layer)
+- Every creation, log check, performance report, and manual pause is published to Walrus as a JSON envelope.
+- Logs reference immutable Walrus blob IDs.
+- Enables agent recovery: strategies can be fully reconstructed using only a list of Walrus blob IDs.
 
-## Technical Architecture
+---
+
+## Technical Architecture & Implementations
+
+### Service & File Architecture
+
+- **Sui RPC & Price Services:** Exposes SUI prices, multi-asset conversion rates, checkpoint latency data, and destination safety checks in [tatum.service.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/services/tatum.service.ts).
+- **Walrus Publisher & Aggregator:** Controls file storage endpoints in [walrus.service.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/services/walrus.service.ts).
+- **Agent Orchestrator:** Schedules checkruns, evaluates rules, calls safety monitors, and generates logs in [scheduler.service.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/services/scheduler.service.ts).
+- **ACID Database Registry:** Controls schemas and table actions using a local database in [db.service.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/services/db.service.ts).
+- **Swap Executor:** Drives swaps and DCA trades in [swap.service.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/services/swap.service.ts).
+- **Walrus Agent Recovery:** Performs node recovery operations and state indexing in [walrus-recovery.service.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/services/walrus-recovery.service.ts).
+- **Agent Definitions:** Declares clean TypeScript typings in [agent.types.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/types/agent.types.ts).
+- **Centralized Constants:** Defines all execution configurations and magic numbers in [constants.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/config/constants.ts).
+- **JSON Structured Logger:** Standardizes JSON output patterns via [logger.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/utils/logger.ts).
 
 ### Data Flow
 
 ```
 User Intent (English)
     ↓
-[NLP Parse] → GPT-4o-mini
+[NLP Parse] → OpenAI
     ↓
 Structured Rules JSON
     ↓
-[Publish] → Walrus Blob (immutable source of truth)
+[Publish] → Walrus Blob (immutable strategy registry)
     ↓
-SQLite Agent Registry (fast in-memory cache + persistent DB)
+SQLite DB (better-sqlite3) & Scheduler memory cache
     ↓
 Scheduled Checks (Every 60s)
     ↓
-[Per-Agent Timeout] → 30s Promise.race()
+[Isolating Timeout] → Promise.race() using CONSTANTS.AGENT_TIMEOUT_MS
     ↓
-[Balance Check] → Tatum RPC Gateway (rate-limited 2 RPS)
+[Tatum API RPC] → Query balance & SUI/USD exchange rate
     ↓
-[Log Action] → Walrus Blob + SQLite Record
+[Safety Audit] → Tatum checkMaliciousAddress
     ↓
-Dashboard UI (view strategy, logs, balance, pause/resume)
+[Action Execution] → executeDCASwap / executeSwap
+    ↓
+[Log Serialization] → Walrus Blob + SQLite Registry
+    ↓
+Dashboard (SSE Telemetry)
 ```
 
-### Key Architectural Decisions
+---
 
-| Decision | Rationale |
-|----------|-----------|
-| SQLite for agent state | Survives server restarts; avoids JSON file corruption crashes |
-| Walrus for immutable logs | Public verifiability without centralized indexing |
-| Parallel execution (Promise.allSettled) | Failures isolated; one agent can't block hundreds of others |
-| 30s per-agent timeout | Prevents Tatum RPC hangs from cascading; rate limits respected |
-| Rate-limited Tatum gateway | 2 RPS (safe under 3 RPS free tier); prevents throttling |
-| Lazy-loaded OpenAI client | Defers initialization; fails gracefully if API key missing |
-| Node.js crypto for wallet generation | No ESM dependencies; CommonJS compatible; works in hackathon environments |
+## Technical Implementations
 
-## Value Proposition
+### SQLite Persistence (Storage Resilience)
+- Replaced fragile JSON files with a structured SQLite database using `better-sqlite3`.
+- Relies on indexing (`idx_agents_id`, `idx_logs_agent_id`) to retrieve datasets.
+- Schema provides transactional reliability for agents and runtime logs, persisting state changes across restarts.
 
-### For Traders
-✅ Deploy strategies without crypto expertise  
-✅ Verify execution history with public blob IDs  
-✅ Daily spend limits prevent catastrophic losses  
-✅ 1-minute cadence for frequent balance checks  
+### Parallel Execution & Timeout Guarding
+- Switched sequential runs to parallel mapping using `Promise.allSettled()`.
+- Wraps execution threads with `Promise.race()` to abort queries exceeding `CONSTANTS.AGENT_TIMEOUT_MS`.
+- Rate limits outgoing requests via rate limit controls matching safe network ranges (`CONSTANTS.TATUM_RATE_LIMIT_MS = 400ms`).
 
-### For Developers
-✅ Open-source agent framework  
-✅ Modular service architecture (scheduler, wallet, db, MCP, tatum, walrus, swap)  
-✅ Extensible intent parsing (add custom rules)  
-✅ SQLite + Walrus composability  
+### Agent Wallet Generation
+- Backend creates secure, isolated SUI addresses for each agent locally.
+- Uses standard cryptographic functions to secure keypairs inside SQLite, preventing key exposure to the frontend.
 
-### For Sui Ecosystem
-✅ Reference implementation of Walrus for audit trails  
-✅ Demonstrates rate-limited RPC gateway patterns  
-✅ Parallel execution model for scalable agent swarms  
-✅ Immutable strategy registry for DeFi composability  
+### Walrus Agent Indexing & Recovery
+- Implemented a complete recovery strategy in [walrus-recovery.service.ts](file:///c:/Users/DELL/Documents/suicopilot/apps/backend/src/services/walrus-recovery.service.ts).
+- Enables developers to restore agent state directly from Walrus blob IDs if the local database is lost.
+- Dynamically compiles and uploads a master agent strategy index.
 
-## How It Works: Three-Step Flow
+---
 
-### Step 1: Deploy from a Prompt
-- User connects Sui wallet
-- Enters strategy in English: *"Buy 10 SUI every hour if price < $5, max $100/day"*
-- Daily limit enforced at agent level
-- Rules published to Walrus as immutable blob
+## Roadmap
 
-### Step 2: Scheduled Balance Checks
-- Cron triggers every 60 seconds
-- For each active agent:
-  - 30-second timeout ensures no RPC hang blocks others
-  - Rate-limited call to Tatum's Sui balance endpoint
-  - Checks remaining daily spend
-  - Records balance snapshot
-
-### Step 3: Immutable Audit Trail
-- Every action (deploy, pause, resume, check) → Walrus blob
-- Blob ID stored in agent record and SQLite logs
-- Dashboard displays chain of actions with timestamps
-- Users can prove what their agent did on what date/time
-
-## Addressing the Three Fixes
-
-### Fix 1: Storage Resilience (JSON → SQLite)
-**Problem**: JSON file crashes lose all agent state and execution history  
-**Solution**: SQLite with ACID guarantees  
-- Agents table: id, intent, daily_limit, wallet, rules, logs  
-- Logs table: agent_id, blob_id, action, status, timestamp  
-- Load on startup from disk; persist on every state change  
-- Survives server restarts and power failures  
-
-### Fix 2: Parallel Scheduler (Sequential → Promise.allSettled)
-**Problem**: One agent's RPC hang blocks all others  
-**Solution**: Parallel execution with per-agent timeout  
-```javascript
-Promise.allSettled(
-  activeAgents.map(agent => runAgentSafe(agent))
-)
-```
-- All agents run simultaneously  
-- 30s timeout per agent via Promise.race()  
-- Failed agent doesn't affect others  
-- Cascading failures prevented  
-
-### Fix 3: Transaction Signing (No SDK → Node Crypto)
-**Problem**: @mysten/sui is ESM-only; backend is CommonJS  
-**Solution**: Use Node's built-in `crypto` module  
-- Generate 32-byte random private key  
-- Deterministic Sui-style address via SHA256 hash  
-- Private keys stored in SQLite only (never sent to frontend)  
-- Backend doesn't sign; frontend wallet does (for hackathon)  
-
-## Impact Metrics
-
-| Metric | Baseline | With SuiCopilot |
-|--------|----------|-----------------|
-| Time to deploy agent | Hours (code) | 2 minutes (prompt) |
-| Execution reliability | Single point of failure | Parallel + timeout isolation |
-| Audit transparency | Opaque logs | Public Walrus blobs |
-| Daily spend safety | Manual enforcement | Automated limits |
-| Agent failure blast radius | 100% | 0% (isolated) |
-
-## Future Roadmap
-
-1. **Multi-chain support**: Extend to Solana, Ethereum, Aptos  
-2. **Custom rule engine**: Move beyond GPT parsing to user-defined logic  
-3. **Market data feeds**: Integrate Pyth for price triggers  
-4. **Agent marketplace**: Share/fork strategies with royalty splits  
-5. **Advanced execution**: DCA orders, limit orders, conditional swaps  
-6. **Analytics dashboard**: Win rate, Sharpe ratio, max drawdown  
-
-## Conclusion
-
-SuiCopilot combines natural language intent parsing, immutable strategy storage, and fault-tolerant parallel execution to make autonomous trading accessible, verifiable, and resilient. By leveraging Walrus for public audit trails and Sui's fast settlement, it creates a new category of democratized algorithmic trading infrastructure.
+1. **Onchain Proof Anchoring:** Anchoring SHA-256 hashes of Walrus logs onto Sui mainnet.
+2. **DeFi Integrations:** Integrating live trading routing protocols (e.g., Cetus) for optimized slippage.
+3. **Advanced AI Diagnostics:** Fine-tuning strategies using custom Move-specific security models.
+4. **Verifiable Session Playback:** Rendering step-by-step trace audits directly from Walrus.
