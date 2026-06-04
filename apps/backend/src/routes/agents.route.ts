@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { publishBlob, fetchBlob, publishAgentBlob } from '../services/walrus.service';
-import { getSuiBalance, getSuiPrice, getTatumNodeStatus, getExchangeRate, checkMaliciousAddress, getAllBalances, getTransactionHistory, getLatencyHistory, getAverageLatency } from '../services/tatum.service';
+import { getSuiBalance, getSuiPrice, getTatumNodeStatus, getExchangeRate, checkMaliciousAddress, getAllBalances, getTransactionHistory, getLatencyHistory, getAverageLatency, rpcCall } from '../services/tatum.service';
 import { agents } from '../services/scheduler.service';
 import { v4 as uuidv4 } from 'uuid';
 import { generateAgentWallet } from '../services/wallet.service';
@@ -9,6 +9,9 @@ import { saveAgent, saveLog, loadAllAgents, getAgent } from '../services/db.serv
 import { recoverAgentsFromWalrus, publishAgentIndex } from '../services/walrus-recovery.service';
 import { parseIntent } from '../services/mcp.service';
 import { broadcast } from '../realtime';
+import { CONSTANTS } from '../config/constants';
+import { logger } from '../utils/logger';
+import { Agent } from '../types/agent.types';
 
 const router = Router();
 
@@ -34,11 +37,11 @@ router.post('/recover', async (req: Request, res: Response) => {
 // Create a new agent
 router.post('/', async (req: Request, res: Response) => {
   try {
-    console.log('Deploy request received:', req.body);
+    logger.info('Deploy request received', req.body);
     const { intent, dailyLimit, walletAddress, parsedRules: bodyParsedRules, rulesBlobId: bodyRulesBlobId } = req.body;
 
     // Basic input validation
-    if (!intent || typeof intent !== 'string' || intent.length > 500) {
+    if (!intent || typeof intent !== 'string' || intent.length > CONSTANTS.MAX_INTENT_LENGTH) {
       return res.status(400).json({ error: 'Invalid intent' });
     }
     if (!dailyLimit || isNaN(Number(dailyLimit)) || Number(dailyLimit) <= 0 || Number(dailyLimit) > 1000000) {
@@ -53,7 +56,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     let parsedRules = bodyParsedRules ?? null;
     if (!parsedRules && intent) {
-      console.log(`[Deploy] Parsing intent for agent ${agentId}...`);
+      logger.info(`[Deploy] Parsing intent for agent ${agentId}...`);
       parsedRules = await parseIntent(intent);
     }
 
@@ -86,10 +89,10 @@ router.post('/', async (req: Request, res: Response) => {
       agentPrivateKey: undefined // never store key in Walrus
     });
 
-    const fullAgent = {
+    const fullAgent: Agent = {
       ...strategy,
       strategyBlobId,
-      logBlobId: null,
+      logBlobId: null as any,
       logs: [],
     };
 
@@ -114,10 +117,43 @@ router.post('/', async (req: Request, res: Response) => {
       agentWalletAddress: agentWallet.address,
     });
   } catch (err: any) {
-    console.error('Deploy error:', err.message, err.stack);
+    logger.error('Deploy error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
+
+router.get('/meta/tatum-proof', async (req: Request, res: Response) => {
+  try {
+    const start = Date.now();
+
+    const [checkpoint, suiPrice, btcPrice] = await Promise.all([
+      rpcCall('sui_getLatestCheckpointSequenceNumber', []),
+      getSuiPrice(),
+      getExchangeRate('BTC'),
+    ]);
+
+    res.json({
+      proof: 'Tatum Sui RPC Integration Active',
+      network: 'sui-mainnet',
+      gatewayUrl: 'https://sui-mainnet.gateway.tatum.io',
+      data: {
+        latestCheckpoint: checkpoint,
+        suiPriceUsd: suiPrice,
+        btcPriceUsd: btcPrice,
+        responseTimeMs: Date.now() - start,
+      },
+      apis: [
+        'Tatum RPC Gateway — sui_getLatestCheckpointSequenceNumber',
+        'Tatum Rate API — SUI/USD',
+        'Tatum Rate API — BTC/USD',
+      ],
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/meta/price', async (req: Request, res: Response) => {
   try {
     const price = await getSuiPrice();

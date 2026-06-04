@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { publishBlob } from './walrus.service';
+import { CONSTANTS } from '../config/constants';
+import { logger } from '../utils/logger';
 
 const TATUM_API_KEY = process.env.TATUM_API_KEY!;
 const RPC_URL = process.env.SUI_RPC_URL!;
@@ -29,7 +31,7 @@ export async function executeDCASwap(params: {
   try {
     const priceRes = await axios.get(
       'https://api.tatum.io/v3/tatum/rate/SUI?basePair=USD',
-      { headers: { 'x-api-key': TATUM_API_KEY }, timeout: 5000 }
+      { headers: { 'x-api-key': TATUM_API_KEY }, timeout: CONSTANTS.TATUM_PRICE_TIMEOUT_MS }
     );
     suiPrice = Number(priceRes.data?.value ?? 0);
   } catch {
@@ -51,7 +53,7 @@ export async function executeDCASwap(params: {
       },
       {
         headers: { 'Content-Type': 'application/json', 'x-api-key': TATUM_API_KEY },
-        timeout: 20000,
+        timeout: CONSTANTS.TATUM_RPC_TIMEOUT_MS,
       }
     );
     balanceSui = Number(balRes.data?.result?.totalBalance ?? 0) / 1_000_000_000;
@@ -85,7 +87,7 @@ export async function executeDCASwap(params: {
   // Step 4 — publish swap log to Walrus
   const blobId = await publishBlob(swapRecord);
 
-  console.log(
+  logger.info(
     `[DCA] Agent ${params.agentId}: $${params.amountUsd} → ${suiAmount.toFixed(4)} SUI @ $${suiPrice} | blob: ${blobId}`
   );
 
@@ -125,7 +127,7 @@ export async function executeSwap(params: {
       simulated: result.simulated,
     };
   } catch (err: any) {
-    console.error('Swap error:', err.message);
+    logger.error('Swap error:', err.message);
     return { success: false, simulated: true };
   }
 }

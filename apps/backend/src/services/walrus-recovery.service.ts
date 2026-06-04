@@ -6,6 +6,7 @@ import { saveAgent } from './db.service';
 const INDEX_BLOB_FILE = 'data/index-blob-id.txt';
 import fs from 'fs';
 import path from 'path';
+import { logger } from '../utils/logger';
 
 // Save the index blob ID locally so we can find it on restart
 function saveIndexBlobId(blobId: string) {
@@ -37,7 +38,7 @@ export async function publishAgentIndex(): Promise<string> {
   });
 
   saveIndexBlobId(blobId);
-  console.log(`[Walrus] Index blob updated → ${blobId}`);
+  logger.info(`[Walrus] Index blob updated → ${blobId}`);
   return blobId;
 }
 
@@ -45,17 +46,17 @@ export async function publishAgentIndex(): Promise<string> {
 export async function restoreFromIndex(): Promise<void> {
   const indexBlobId = loadIndexBlobId();
   if (!indexBlobId) {
-    console.log('[Recovery] No index blob found, starting fresh');
+    logger.info('[Recovery] No index blob found, starting fresh');
     return;
   }
 
   try {
-    console.log(`[Recovery] Reading index from Walrus: ${indexBlobId}`);
+    logger.info(`[Recovery] Reading index from Walrus: ${indexBlobId}`);
     const index = await fetchBlob(indexBlobId);
 
     if (!index?.agents?.length) return;
 
-    console.log(`[Recovery] Found ${index.agents.length} agents in Walrus index`);
+    logger.info(`[Recovery] Found ${index.agents.length} agents in Walrus index`);
 
     for (const entry of index.agents) {
       if (agents[entry.id]) continue; // already in SQLite cache
@@ -82,13 +83,13 @@ export async function restoreFromIndex(): Promise<void> {
 
         agents[restored.id] = restored;
         saveAgent(restored);
-        console.log(`[Recovery] Restored agent ${restored.id} from Walrus`);
+        logger.info(`[Recovery] Restored agent ${restored.id} from Walrus`);
       } catch (e: any) {
-        console.error(`[Recovery] Failed for blob ${entry.strategyBlobId}:`, e.message);
+        logger.error(`[Recovery] Failed for blob ${entry.strategyBlobId}:`, e.message);
       }
     }
   } catch (e: any) {
-    console.error('[Recovery] Index read failed:', e.message);
+    logger.error('[Recovery] Index read failed:', e.message);
   }
 }
 
@@ -98,7 +99,7 @@ export async function fetchBlobData(blobId: string): Promise<any> {
 
 export async function recoverAgentsFromWalrus(blobIds: string[]): Promise<void> {
   if (!blobIds.length) return;
-  console.log(`[Recovery] Manual recovery of ${blobIds.length} blobs...`);
+  logger.info(`[Recovery] Manual recovery of ${blobIds.length} blobs...`);
   for (const blobId of blobIds) {
     try {
       const data = await fetchBlob(blobId);
@@ -121,9 +122,9 @@ export async function recoverAgentsFromWalrus(blobIds: string[]): Promise<void> 
       };
       agents[restored.id] = restored;
       saveAgent(restored);
-      console.log(`[Recovery] Restored ${restored.id}`);
+      logger.info(`[Recovery] Restored ${restored.id}`);
     } catch (e: any) {
-      console.error(`[Recovery] Failed ${blobId}:`, e.message);
+      logger.error(`[Recovery] Failed ${blobId}:`, e.message);
     }
   }
 }

@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { CONSTANTS } from '../config/constants';
+import { logger } from '../utils/logger';
 
 const AGGREGATOR = process.env.WALRUS_AGGREGATOR_URL
   ?? 'https://aggregator.walrus-testnet.walrus.space';
@@ -16,11 +18,11 @@ export async function publishBlob(data: object): Promise<string> {
   for (const publisher of PUBLISHERS) {
     try {
       const response = await axios.put(
-        `${publisher}/v1/blobs?epochs=5`,
+        `${publisher}/v1/blobs?epochs=${CONSTANTS.WALRUS_EPOCHS}`,
         JSON.stringify(data),
         {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 20000,
+          timeout: CONSTANTS.WALRUS_TIMEOUT_MS,
         }
       );
       const result = response.data;
@@ -28,11 +30,11 @@ export async function publishBlob(data: object): Promise<string> {
         result?.newlyCreated?.blobObject?.blobId ??
         result?.alreadyCertified?.blobId;
       if (blobId) {
-        console.log(`[Walrus] Published via ${publisher} → ${blobId}`);
+        logger.info(`[Walrus] Published via ${publisher} → ${blobId}`);
         return blobId;
       }
     } catch (err: any) {
-      console.warn(`[Walrus] ${publisher} failed: ${err.message}`);
+      logger.warn(`[Walrus] ${publisher} failed: ${err.message}`);
       lastError = err;
     }
   }
@@ -43,7 +45,7 @@ export async function publishBlob(data: object): Promise<string> {
 export async function fetchBlob(blobId: string): Promise<any> {
   const response = await axios.get(
     `${AGGREGATOR}/v1/${blobId}`,
-    { timeout: 10000 }
+    { timeout: CONSTANTS.TATUM_RPC_TIMEOUT_MS }
   );
   return response.data;
 }

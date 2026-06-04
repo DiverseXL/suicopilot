@@ -9,6 +9,7 @@ import { restoreFromIndex } from './services/walrus-recovery.service';
 import { startScheduler } from './services/scheduler.service';
 import { validateEnv } from './config/env';
 import { broadcast, sseClients } from './realtime';
+import { logger } from './utils/logger';
 
 export { broadcast, sseClients };
 
@@ -41,11 +42,11 @@ function mountSseRoute(path: string) {
     res.flushHeaders();
 
     sseClients.add(res);
-    console.log(`[SSE] Client connected. Total: ${sseClients.size}`);
+    logger.info(`[SSE] Client connected. Total: ${sseClients.size}`);
 
     req.on('close', () => {
       sseClients.delete(res);
-      console.log(`[SSE] Client disconnected. Total: ${sseClients.size}`);
+      logger.info(`[SSE] Client disconnected. Total: ${sseClients.size}`);
     });
   });
 }
@@ -59,9 +60,9 @@ async function bootstrap() {
 
   const PORT = process.env.PORT ?? 3001;
   app.listen(PORT, () => {
-    console.log(`Backend running on http://localhost:${PORT}`);
-    console.log(`[SSE] stream at http://localhost:${PORT}/events`);
+    logger.info(`Backend running on http://localhost:${PORT}`);
+    logger.info(`[SSE] stream at http://localhost:${PORT}/events`);
   });
 }
 
-bootstrap().catch(console.error);
+bootstrap().catch(err => logger.error('Bootstrap error', err));

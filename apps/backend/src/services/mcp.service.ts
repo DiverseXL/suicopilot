@@ -1,5 +1,7 @@
 import axios from 'axios';
 import OpenAI from 'openai';
+import { getSuiPrice } from './tatum.service';
+import { CONSTANTS } from '../config/constants';
 
 const RPC_URL = process.env.SUI_RPC_URL!;
 const API_KEY = process.env.TATUM_API_KEY!;
@@ -22,7 +24,7 @@ const headers = {
 export async function executeRpc(method: string, params: any[]): Promise<any> {
   const res = await axios.post(RPC_URL, {
     jsonrpc: '2.0', id: 1, method, params
-  }, { headers, timeout: 20000 });
+  }, { headers, timeout: CONSTANTS.TATUM_RPC_TIMEOUT_MS });
   return res.data.result;
 }
 
@@ -48,25 +50,13 @@ export async function getTransactionHistory(address: string): Promise<any[]> {
   return result?.data ?? [];
 }
 
-// Get live SUI/USD exchange rate via Tatum Data API
-export async function getSuiPrice(): Promise<number> {
-  try {
-    const res = await axios.get(
-      'https://api.tatum.io/v3/tatum/rate/SUI?basePair=USD',
-      { headers: { 'x-api-key': API_KEY }, timeout: 10000 }
-    );
-    return Number(res.data.value) ?? 0;
-  } catch {
-    return 0;
-  }
-}
 
 // Check if an address is malicious before agent executes
 export async function checkMaliciousAddress(address: string): Promise<boolean> {
   try {
     const res = await axios.get(
       `https://api.tatum.io/v3/security/address/${address}?chain=SUI`,
-      { headers: { 'x-api-key': API_KEY }, timeout: 10000 }
+      { headers: { 'x-api-key': API_KEY }, timeout: CONSTANTS.TATUM_RPC_TIMEOUT_MS }
     );
     return res.data?.malicious === true;
   } catch {

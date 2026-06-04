@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { CONSTANTS } from '../config/constants';
 
 const RPC_URL = process.env.SUI_RPC_URL!;
 const API_KEY = process.env.TATUM_API_KEY!;
@@ -18,7 +19,7 @@ export function getAverageLatency(): number {
 
 // Rate limiter — max 2 requests per second (safe under 3 RPS free limit)
 let lastCallTime = 0;
-const MIN_INTERVAL_MS = 500; // 2 RPS max
+const MIN_INTERVAL_MS = CONSTANTS.TATUM_RATE_LIMIT_MS;
 
 async function rateLimitedCall() {
   const now = Date.now();
@@ -27,7 +28,7 @@ async function rateLimitedCall() {
   lastCallTime = Date.now();
 }
 
-async function rpcCall(method: string, params: any[]) {
+export async function rpcCall(method: string, params: any[]) {
   await rateLimitedCall();
   const start = Date.now();
   const response = await axios.post(
@@ -38,7 +39,7 @@ async function rpcCall(method: string, params: any[]) {
         'Content-Type': 'application/json',
         'x-api-key': API_KEY,
       },
-      timeout: 10000,
+      timeout: CONSTANTS.TATUM_RPC_TIMEOUT_MS,
     }
   );
   const latencyMs = Date.now() - start;
@@ -67,7 +68,7 @@ export async function getSuiPrice(): Promise<number> {
       'https://api.tatum.io/v3/tatum/rate/SUI?basePair=USD',
       {
         headers: { 'x-api-key': API_KEY },
-        timeout: 5000,
+        timeout: CONSTANTS.TATUM_PRICE_TIMEOUT_MS,
       }
     );
     return Number(res.data?.value) ?? 0;
@@ -101,7 +102,7 @@ export async function getExchangeRate(asset: string, basePair = 'USD'): Promise<
     await rateLimitedCall();
     const res = await axios.get(
       `https://api.tatum.io/v3/tatum/rate/${asset}?basePair=${basePair}`,
-      { headers: { 'x-api-key': API_KEY }, timeout: 5000 }
+      { headers: { 'x-api-key': API_KEY }, timeout: CONSTANTS.TATUM_PRICE_TIMEOUT_MS }
     );
     return Number(res.data?.value ?? 0);
   } catch {
@@ -127,7 +128,7 @@ export async function checkMaliciousAddress(address: string): Promise<any> {
     await rateLimitedCall();
     const res = await axios.get(
       `https://api.tatum.io/v3/security/address/${address}?chain=SUI`,
-      { headers: { 'x-api-key': API_KEY }, timeout: 5000 }
+      { headers: { 'x-api-key': API_KEY }, timeout: CONSTANTS.TATUM_PRICE_TIMEOUT_MS }
     );
     return { malicious: res.data?.malicious === true, reason: res.data?.reason };
   } catch {

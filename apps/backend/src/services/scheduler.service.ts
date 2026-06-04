@@ -5,6 +5,9 @@ import { publishAgentBlob } from './walrus.service';
 import { loadAllAgents, saveAgent, saveLog } from './db.service';
 import { executeDCASwap } from './swap.service';
 import { broadcast } from '../realtime';
+import { CONSTANTS } from '../config/constants';
+import { logger } from '../utils/logger';
+import { Agent } from '../types/agent.types';
 
 let _openai: OpenAI | null = null;
 
@@ -19,17 +22,17 @@ let healthCheckCounter = 0;
 const agentRunCounts: Record<string, number> = {};
 
 // Load persisted agents from SQLite on startup
-export const agents: Record<string, any> = loadAllAgents();
-console.log(`Loaded ${Object.keys(agents).length} agents from SQLite`);
+export const agents: Record<string, Agent> = loadAllAgents();
+logger.info(`Loaded ${Object.keys(agents).length} agents from SQLite`);
 
 export function startScheduler() {
-  console.log('Scheduler started');
+  logger.info('Scheduler started');
 
   cron.schedule('* * * * *', async () => {
     const activeAgents = Object.values(agents).filter(a => !a.paused);
 
     if (activeAgents.length > 0) {
-      console.log(`Scheduler: running ${activeAgents.length} agents in parallel`);
+      logger.info(`Scheduler: running ${activeAgents.length} agents in parallel`);
 
       // Fix 2: run ALL agents in parallel, never block on one failure
       const results = await Promise.allSettled(
@@ -38,29 +41,29 @@ export function startScheduler() {
 
       results.forEach((result, i) => {
         if (result.status === 'rejected') {
-          console.error(`Agent ${activeAgents[i].id} failed:`, result.reason);
+          logger.error(`Agent ${activeAgents[i].id} failed:`, result.reason);
         }
       });
     }
 
     healthCheckCounter++;
-    if (healthCheckCounter % 10 === 0) {
+    if (healthCheckCounter % CONSTANTS.HEALTH_CHECK_INTERVAL === 0) {
       await runHealthChecks();
     }
   });
 }
 
-async function runAgentSafe(agent: any): Promise<void> {
+async function runAgentSafe(agent: Agent): Promise<void> {
   // Add per-agent timeout — never let one RPC hang block others
   return Promise.race([
     runAgent(agent),
     new Promise<void>((_, reject) =>
-      setTimeout(() => reject(new Error('Agent timeout after 30s')), 30_000)
+      setTimeout(() => reject(new Error(`Agent timeout after ${CONSTANTS.AGENT_TIMEOUT_MS}ms`)), CONSTANTS.AGENT_TIMEOUT_MS)
     ),
   ]);
 }
 
-async function runAgent(agent: any): Promise<void> {
+async function runAgent(agent: Agent): Promise<void> {
   const now = new Date();
 
   // Reset daily spend at midnight
@@ -70,7 +73,7 @@ async function runAgent(agent: any): Promise<void> {
   }
 
   if (agent.spentToday >= agent.dailyLimit) {
-    console.log(`Agent ${agent.id}: daily limit reached`);
+    logger.info(`Agent ${agent.id}: daily limit reached`);
     return;
   }
 
@@ -167,9 +170,9 @@ async function runAgent(agent: any): Promise<void> {
   agent.lastRun = now.toISOString();
   agent.logs = [log, ...(agent.logs ?? [])];
 
-  // Keep only last 50 logs in memory
-  if (agent.logs.length > 50) {
-    agent.logs = agent.logs.slice(0, 50);
+  // Keep only last MAX_LOGS_IN_MEMORY logs in memory
+  if (agent.logs.length > CONSTANTS.MAX_LOGS_IN_MEMORY) {
+    agent.logs = agent.logs.slice(0, CONSTANTS.MAX_LOGS_IN_MEMORY);
   }
 
   saveAgent(agent);
@@ -181,7 +184,7 @@ async function runAgent(agent: any): Promise<void> {
     try {
       await publishPerformanceReport(agent);
     } catch (e: any) {
-      console.error(`[Performance] Report failed for ${agent.id}:`, e.message);
+      logger.error(`[Performance] Report failed for ${agent.id}:`, e.message);
     }
   }
 
@@ -197,7 +200,7 @@ async function runAgent(agent: any): Promise<void> {
     suiPrice,
   });
 
-  console.log(`Agent ${agent.id}: [${decision}] ${reason} → blob: ${logBlobId}`);
+  logger.info(`Agent ${agent.id}: [${decision}] ${reason} → blob: ${logBlobId}`);
 
   if (decision === 'execute_dca' && rules) {
     try {
@@ -235,11 +238,11 @@ async function runAgent(agent: any): Promise<void> {
         status: swapLog.status,
       });
 
-      console.log(
+      logger.info(
         `Agent ${agent.id}: DCA swap ${swapResult.success ? 'executed' : 'skipped'} → blob: ${swapResult.blobId}`
       );
     } catch (err: any) {
-      console.error(`Agent ${agent.id}: DCA swap error:`, err.message);
+      logger.error(`Agent ${agent.id}: DCA swap error:`, err.message);
     }
   }
 }
@@ -317,14 +320,14 @@ Respond with JSON only:
         timestamp: new Date().toISOString(),
       });
 
-      console.log(`[Health] Agent ${agent.id}: ${healthData.health} — ${healthData.message}`);
+      logger.info(`[Health] Agent ${agent.id}: ${healthData.health} — ${healthData.message}`);
     } catch (err: any) {
-      console.error(`[Health] Agent ${agent.id} check failed:`, err.message);
+      logger.error(`[Health] Agent ${agent.id} check failed:`, err.message);
     }
   }
 }
 
-async function publishPerformanceReport(agent: any): Promise<void> {
+async function publishPerformanceReport(agent: Agent): Promise<void> {
   const logs = agent.logs ?? [];
   const totalRuns = logs.length;
   const successfulRuns = logs.filter((l: any) =>
@@ -377,5 +380,5 @@ async function publishPerformanceReport(agent: any): Promise<void> {
     timestamp: report.timestamp,
   });
 
-  console.log(`[Performance] Agent ${agent.id}: report published → ${blobId}`);
+  logger.info(`[Performance] Agent ${agent.id}: report published → ${blobId}`);
 }
