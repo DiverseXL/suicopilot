@@ -63,6 +63,14 @@ async function bootstrap() {
     logger.info(`Backend running on http://localhost:${PORT}`);
     logger.info(`[SSE] stream at http://localhost:${PORT}/events`);
   });
+
+  // Keep Render free tier alive — ping every 14 minutes to prevent sleep
+  const SELF_URL = process.env.RENDER_EXTERNAL_URL ?? `http://localhost:${PORT}`;
+  setInterval(() => {
+    fetch(`${SELF_URL}/health`)
+      .then(() => logger.info('[Ping] Self-ping ok'))
+      .catch((err: any) => logger.warn('[Ping] Self-ping failed', err.message));
+  }, 14 * 60 * 1000);
 }
 
 bootstrap().catch(err => logger.error('Bootstrap error', err));
