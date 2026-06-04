@@ -22,8 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <WalletProvider
           autoConnect
           theme={suicopilotWalletTheme}
-          preferredWallets={['Sui Wallet', 'OKX Wallet', 'Nightly']}
-          walletFilter={(wallet) => wallet.name !== 'Phantom'}
+          preferredWallets={['Sui Wallet', 'Phantom', 'OKX Wallet', 'Nightly', 'Slush']}
         >
           {children}
         </WalletProvider>
