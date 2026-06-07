@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Wallet,
   Terminal,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -31,6 +32,9 @@ export default function AgentDashboard() {
   const [pausing, setPausing] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);
+  const [proof, setProof] = useState<any>(null);
+  const [generatingProof, setGeneratingProof] = useState(false);
+  const [copiedProofBlob, setCopiedProofBlob] = useState(false);
 
   async function fetchAgent() {
     try {
@@ -382,6 +386,252 @@ export default function AgentDashboard() {
             </div>
           </div>
 
+          {/* Fund agent callout */}
+          {(Number(agent.balance ?? 0) === 0) && (
+            <div style={{
+              padding: '20px', borderRadius: 14,
+              background: 'rgba(255,184,0,0.06)',
+              border: '1px solid rgba(255,184,0,0.2)',
+              marginBottom: 12
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 600,
+                color: '#FFB800', marginBottom: 8 }}>
+                ⚡ Fund Agent Wallet to Enable Real Execution
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(160,160,176,1)',
+                marginBottom: 12, lineHeight: 1.6 }}>
+                Send SUI to the agent wallet to enable real on-chain DCA execution.
+                Minimum: 0.1 SUI
+              </div>
+              <div style={{
+                background: 'rgba(13,13,20,0.8)', borderRadius: 10,
+                padding: '12px', fontFamily: 'monospace',
+                fontSize: 12, color: '#B97BFF',
+                wordBreak: 'break-all', marginBottom: 12
+              }}>
+                {agent.agentWalletAddress ?? agent.walletAddress}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      agent.agentWalletAddress ?? agent.walletAddress
+                    );
+                    alert('Address copied!');
+                  }}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    background: 'rgba(255,184,0,0.15)',
+                    border: '1px solid rgba(255,184,0,0.3)',
+                    color: '#FFB800', cursor: 'pointer', fontSize: 12
+                  }}>
+                  Copy Address
+                </button>
+                
+                <a
+                  href={`https://suiscan.xyz/mainnet/account/${agent.agentWalletAddress ?? agent.walletAddress}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(160,160,176,1)', textDecoration: 'none',
+                    fontSize: 12
+                  }}>
+                  View on SuiScan →
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* On-chain proof button */}
+          <button
+            onClick={async () => {
+              if (generatingProof) return;
+              setGeneratingProof(true);
+              try {
+                const res = await api.get(
+                  `/api/agents/${id}/onchain-proof`
+                );
+                setProof(res.data);
+              } catch (e: any) {
+                alert('Error generating proof: ' + e.message);
+              } finally {
+                setGeneratingProof(false);
+              }
+            }}
+            disabled={generatingProof}
+            style={{
+              width: '100%', padding: '12px', borderRadius: 10,
+              background: generatingProof ? 'rgba(59,158,255,0.08)' : 'rgba(59,158,255,0.15)',
+              border: '1px solid rgba(59,158,255,0.25)',
+              color: '#3B9EFF', cursor: generatingProof ? 'not-allowed' : 'pointer',
+              fontSize: 14, fontWeight: 600, marginBottom: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+            }}>
+            {generatingProof ? (
+              <>
+                <span className="spinner" style={{
+                  width: 14, height: 14, border: '2px solid rgba(59,158,255,0.3)',
+                  borderTopColor: '#3B9EFF', borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite'
+                }} />
+                Generating Proof...
+              </>
+            ) : (
+              <>🔍 Generate On-Chain Proof via Tatum</>
+            )}
+          </button>
+
+          {/* On-chain proof modal */}
+          {proof && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(5,5,10,0.85)', backdropFilter: 'blur(12px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 9999, padding: 20
+            }}>
+              <div style={{
+                background: '#0d0d14', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 20, width: '100%', maxWidth: 500, padding: 24,
+                boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative'
+              }}>
+                <button
+                  onClick={() => setProof(null)}
+                  style={{
+                    position: 'absolute', top: 16, right: 16, background: 'none',
+                    border: 'none', cursor: 'pointer', color: 'rgba(160,160,176,1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4
+                  }}
+                >
+                  <X size={18} />
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <ShieldCheck size={24} style={{ color: proof.verified ? '#14F195' : '#FFB800' }} />
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>
+                    On-Chain Proof Verification
+                  </h3>
+                </div>
+
+                <p style={{ fontSize: 13, color: 'rgba(160,160,176,1)', marginBottom: 20, lineHeight: 1.5 }}>
+                  Verifiable proof generated by querying real-time on-chain data via Tatum RPC and archiving to Walrus decentralized storage.
+                </p>
+
+                {/* Stats / Info */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                  {/* Verification status badge */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 16px', borderRadius: 12,
+                    background: proof.verified ? 'rgba(20,241,149,0.06)' : 'rgba(255,184,0,0.06)',
+                    border: `1px solid ${proof.verified ? 'rgba(20,241,149,0.15)' : 'rgba(255,184,0,0.15)'}`
+                  }}>
+                    <span style={{ fontSize: 12, color: 'rgba(160,160,176,1)' }}>Status</span>
+                    <span style={{
+                      fontSize: 12, fontWeight: 700,
+                      color: proof.verified ? '#14F195' : '#FFB800',
+                      textTransform: 'uppercase', letterSpacing: '0.05em'
+                    }}>
+                      {proof.verified ? 'Verified Activity' : 'No On-Chain Activity'}
+                    </span>
+                  </div>
+
+                  {/* Wallet Address */}
+                  <div style={{ padding: 14, borderRadius: 12, background: 'rgba(5,5,10,0.4)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', color: 'rgba(96,96,112,1)', marginBottom: 6 }}>
+                      Wallet Address
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#B97BFF', wordBreak: 'break-all' }}>
+                        {proof.walletAddress}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Balance & Objects */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ padding: 14, borderRadius: 12, background: 'rgba(5,5,10,0.4)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', color: 'rgba(96,96,112,1)', marginBottom: 6 }}>
+                        Balance
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                        {(Number(proof.onChain.balance) / 1_000_000_000).toFixed(4)} SUI
+                      </div>
+                    </div>
+                    <div style={{ padding: 14, borderRadius: 12, background: 'rgba(5,5,10,0.4)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', color: 'rgba(96,96,112,1)', marginBottom: 6 }}>
+                        Object Count
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                        {proof.onChain.objectCount}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Walrus Blob ID */}
+                  <div style={{ padding: 14, borderRadius: 12, background: 'rgba(5,5,10,0.4)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', color: 'rgba(96,96,112,1)', marginBottom: 6 }}>
+                      Walrus Proof Blob ID
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(160,160,176,1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {proof.blobId}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(proof.blobId);
+                          setCopiedProofBlob(true);
+                          setTimeout(() => setCopiedProofBlob(false), 2000);
+                        }}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(160,160,176,1)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                      >
+                        {copiedProofBlob ? <Check size={12} style={{ color: '#14F195' }} /> : <Copy size={12} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <a
+                    href={`https://aggregator.walrus-testnet.walrus.space/v1/${proof.blobId}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      padding: '12px', borderRadius: 10, background: 'rgba(153,69,255,0.15)',
+                      border: '1px solid rgba(153,69,255,0.25)', color: '#B97BFF',
+                      fontSize: 13, fontWeight: 600, textDecoration: 'none', textAlign: 'center',
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(153,69,255,0.25)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(153,69,255,0.15)'}
+                  >
+                    View Blob <ExternalLink size={13} />
+                  </a>
+                  <a
+                    href={proof.onChain.suiscanUrl}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      padding: '12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)', color: '#fff',
+                      fontSize: 13, fontWeight: 600, textDecoration: 'none', textAlign: 'center',
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                  >
+                    SuiScan <ExternalLink size={13} />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action Center Card */}
           <div style={{
             background: 'rgba(13,13,20,0.8)',
@@ -457,6 +707,9 @@ export default function AgentDashboard() {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

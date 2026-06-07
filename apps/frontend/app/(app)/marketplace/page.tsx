@@ -1,19 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { api } from '@/lib/api';
 import { TrendingUp, Copy, ExternalLink, Star, CheckCheck, Shield, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 export default function MarketplacePage() {
+  const account = useCurrentAccount();
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get('/api/agents')
+    api.get('/api/agents', {
+      params: { wallet: account?.address }
+    })
       .then(r => setAgents(r.data))
       .finally(() => setLoading(false));
-  }, []);
+  }, [account]);
+
 
   function copyBlobId(blobId: string) {
     navigator.clipboard.writeText(blobId);

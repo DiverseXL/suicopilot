@@ -1,16 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { api } from '@/lib/api';
 import { Bot, Plus, ExternalLink, Activity, Clock, Pause, Play, Zap, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AgentsPage() {
+  const account = useCurrentAccount();
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadAgents() {
+    if (!account) return;
     try {
-      const res = await api.get('/api/agents');
+      const res = await api.get('/api/agents', {
+        params: { wallet: account.address }
+      });
       setAgents(res.data);
     } catch (e) {
       console.error(e);
@@ -19,16 +24,29 @@ export default function AgentsPage() {
     }
   }
 
-
-
   useEffect(() => {
     loadAgents();
     const interval = setInterval(loadAgents, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [account]);
+
 
   const active = agents.filter(a => !a.paused).length;
   const paused = agents.filter(a => a.paused).length;
+
+  if (!account) {
+    return (
+      <div style={{ textAlign: 'center', padding: '80px 24px' }}>
+        <div style={{ fontSize: 32, marginBottom: 16 }}>🔐</div>
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+          Connect your wallet
+        </div>
+        <div style={{ fontSize: 14, color: 'rgba(120,120,136,1)' }}>
+          Connect your Sui wallet to view your agents
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

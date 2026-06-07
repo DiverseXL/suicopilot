@@ -12,6 +12,8 @@ import { broadcast } from '../realtime';
 import { CONSTANTS } from '../config/constants';
 import { logger } from '../utils/logger';
 import { Agent } from '../types/agent.types';
+import { getOnChainProof, generateProofBlob } from '../services/onchain.service';
+
 
 const router = Router();
 
@@ -245,21 +247,29 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   }
 });
 
-// Get all agents
+// Get all agents — optionally filter by connected wallet
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const list = Object.values(agents).map(({ agentPrivateKey, ...a }) => ({
-      id: a.id,
-      intent: a.intent,
-      paused: a.paused,
-      strategyBlobId: a.strategyBlobId,
-      logBlobId: a.logBlobId,
-      lastRun: a.lastRun,
-      createdAt: a.createdAt,
-      dailyLimit: a.dailyLimit,
-      agentWalletAddress: a.agentWalletAddress,
-      logs: a.logs ?? [],
-    }));
+    const walletAddress = req.query.wallet as string | undefined;
+
+    const list = Object.values(agents)
+      .filter(({ agentPrivateKey, ...a }: any) =>
+        !walletAddress || a.walletAddress === walletAddress
+      )
+      .map(({ agentPrivateKey, ...a }: any) => ({
+        id: a.id,
+        intent: a.intent,
+        paused: a.paused,
+        strategyBlobId: a.strategyBlobId,
+        logBlobId: a.logBlobId,
+        lastRun: a.lastRun,
+        createdAt: a.createdAt,
+        dailyLimit: a.dailyLimit,
+        agentWalletAddress: a.agentWalletAddress,
+        walletAddress: a.walletAddress,
+        logs: a.logs ?? [],
+      }));
+
     res.json(list);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -386,6 +396,74 @@ router.post('/:id/dca-swap', async (req: Request<{ id: string }>, res: Response)
       message: swapResult.success 
         ? `DCA swap executed: $${amountUsd} USD → SUI @ $${swapResult.price}`
         : 'DCA swap skipped due to insufficient balance'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get on-chain proof for agent wallet
+router.get('/:id/onchain-proof', async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const agent = agents[req.params.id];
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const address = agent.agentWalletAddress ?? agent.walletAddress;
+    const { proof, verified } = await generateProofBlob(agent.id, address);
+
+    // Store proof on Walrus
+    const blobId = await publishAgentBlob('execution', agent.id, {
+      action: 'onchain_proof',
+      ...proof,
+    });
+
+    // Log it
+    const log = {
+      blobId,
+      timestamp: new Date().toISOString(),
+      action: 'onchain_proof',
+      status: verified ? 'verified' : 'unverified',
+    };
+
+    agent.logs = [log, ...(agent.logs ?? [])].slice(0, 50);
+    agent.logBlobId = blobId;
+    saveAgent(agent);
+    saveLog(agent.id, log);
+
+    res.json({
+      ...proof,
+      verified,
+      blobId,
+      message: verified
+        ? 'On-chain activity verified via Tatum RPC'
+        : 'Wallet has no on-chain activity yet — fund the agent wallet to enable real execution',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fund instructions endpoint
+router.get('/:id/fund-instructions', async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const agent = agents[req.params.id];
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const address = agent.agentWalletAddress ?? agent.walletAddress;
+
+    res.json({
+      agentId: agent.id,
+      agentWalletAddress: address,
+      instructions: [
+        `1. Copy the agent wallet address: ${address}`,
+        '2. Send at least 0.1 SUI to this address from any Sui wallet',
+        '3. Once funded, the agent can execute real on-chain transactions',
+        '4. View the wallet on SuiScan to verify the transfer',
+      ],
+      suiscanUrl: `https://suiscan.xyz/mainnet/account/${address}`,
+      faucetUrl: 'https://faucet.sui.io',
+      network: 'sui-mainnet',
+      minimumFunding: '0.1 SUI',
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -1,17 +1,35 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { api } from '@/lib/api';
 import { Database, ExternalLink, RefreshCw, Shield } from 'lucide-react';
 
 export default function WalrusPage() {
+  const account = useCurrentAccount();
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/api/agents')
+    if (!account) { setLoading(false); return; }
+    api.get('/api/agents', { params: { wallet: account.address } })
       .then(r => setAgents(r.data))
       .finally(() => setLoading(false));
-  }, []);
+  }, [account]);
+
+  if (!account) {
+    return (
+      <div style={{ textAlign: 'center', padding: '80px 24px' }}>
+        <div style={{ fontSize: 32, marginBottom: 16 }}>🔐</div>
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+          Connect your wallet
+        </div>
+        <div style={{ fontSize: 14, color: 'rgba(120,120,136,1)' }}>
+          Connect your Sui wallet to view your Walrus blobs
+        </div>
+      </div>
+    );
+  }
+
 
   const allBlobs = agents.flatMap(agent => [
     agent.strategyBlobId && {

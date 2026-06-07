@@ -15,7 +15,7 @@ export default function PortfolioPage() {
   async function load() {
     try {
       const [agentsRes, priceRes] = await Promise.all([
-        api.get('/api/agents'),
+        api.get('/api/agents', { params: { wallet: account?.address } }),
         api.get('/api/agents/meta/price').catch(() => ({ data: { price: 0 } })),
       ]);
       const agentList = agentsRes.data;
@@ -41,7 +41,21 @@ export default function PortfolioPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [account]);
+
+  if (!account) {
+    return (
+      <div style={{ textAlign: 'center', padding: '80px 24px' }}>
+        <div style={{ fontSize: 32, marginBottom: 16 }}>🔐</div>
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+          Connect your wallet
+        </div>
+        <div style={{ fontSize: 14, color: 'rgba(120,120,136,1)' }}>
+          Connect your Sui wallet to view your portfolio
+        </div>
+      </div>
+    );
+  }
 
   async function refresh() {
     setRefreshing(true);

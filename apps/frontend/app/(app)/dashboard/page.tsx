@@ -16,7 +16,9 @@ export default function DashboardPage() {
     async function load() {
       try {
         const [agentsRes, priceRes] = await Promise.all([
-          api.get('/api/agents'),
+          api.get('/api/agents', {
+            params: { wallet: account?.address }
+          }),
           api.get('/api/agents/meta/price').catch(() => ({ data: { price: 0 } })),
         ]);
         setAgents(agentsRes.data);
@@ -28,7 +30,7 @@ export default function DashboardPage() {
     load();
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [account]);
 
   const active = agents.filter(a => !a.paused).length;
   const totalLogs = agents.reduce((sum, a) => sum + (a.logs?.length ?? 0), 0);
